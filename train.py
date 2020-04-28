@@ -9,6 +9,8 @@ import time
 import os
 from MobileNetV2 import *
 import argparse
+
+from imagenet_dataloader import get_dataloader
 from read_ImageNetData import ImageNetData
 
 def train_model(args, model, criterion, optimizer, scheduler, num_epochs, dataset_sizes):
@@ -58,11 +60,11 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
                     optimizer.step()
 
                 # statistics
-                running_loss += loss.data[0]
+                running_loss += loss.data.item()
                 running_corrects += torch.sum(preds == labels.data)
 
-                batch_loss = running_loss / ((i+1)*args.batch_size)
-                batch_acc = running_corrects / ((i+1)*args.batch_size)
+                batch_loss = (running_loss / ((i+1)*args.batch_size))
+                batch_acc = (running_corrects / ((i+1)*args.batch_size)).item()
 
                 if phase == 'train' and i%args.print_freq == 0:
                     print('[Epoch {}/{}]-[batch:{}/{}] lr:{:.4f} {} Loss: {:.6f}  Acc: {:.4f}  Time: {:.4f}batch/sec'.format(
@@ -92,13 +94,13 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description="PyTorch implementation of SENet")
-    parser.add_argument('--data-dir', type=str, default="/ImageNet")
-    parser.add_argument('--batch-size', type=int, default=16)
+    parser.add_argument('--data-dir', type=str, default="./ImageNet")
+    parser.add_argument('--batch-size', type=int, default=320)
     parser.add_argument('--num-class', type=int, default=1000)
     parser.add_argument('--num-epochs', type=int, default=100)
     parser.add_argument('--lr', type=float, default=0.045)
-    parser.add_argument('--num-workers', type=int, default=0)
-    parser.add_argument('--gpus', type=str, default=0)
+    parser.add_argument('--num-workers', type=int, default=25)
+    parser.add_argument('--gpus', type=str, default="0,1,2")
     parser.add_argument('--print-freq', type=int, default=10)
     parser.add_argument('--save-epoch-freq', type=int, default=1)
     parser.add_argument('--save-path', type=str, default="output")
@@ -107,7 +109,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # read data
-    dataloders, dataset_sizes = ImageNetData(args)
+    dataloders, dataset_sizes = get_dataloader(args.data_dir,
+                                               args.batch_size,
+                                               False,
+                                               args.num_workers)
 
     # use gpu or not
     use_gpu = torch.cuda.is_available()
@@ -127,7 +132,8 @@ if __name__ == '__main__':
 
     if use_gpu:
         model = model.cuda()
-        model = torch.nn.DataParallel(model, device_ids=[int(i) for i in args.gpus.strip().split(',')])
+        # model = torch.nn.DataParallel(model, device_ids=[int(i) for i in args.gpus.strip().split(',')])
+        model = torch.nn.DataParallel(model)
 
     # define loss function
     criterion = nn.CrossEntropyLoss()
@@ -136,7 +142,7 @@ if __name__ == '__main__':
     optimizer_ft = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.00004)
 
     # Decay LR by a factor of 0.1 every 7 epochs
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=1, gamma=0.98)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=1, gamma=0.92)
 
     model = train_model(args=args,
                            model=model,
