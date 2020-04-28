@@ -1,0 +1,1 @@
+nohup python -u train.py --batch-size 320 --data-dir ./ImageNet &
