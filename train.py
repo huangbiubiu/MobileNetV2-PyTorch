@@ -61,10 +61,10 @@ def train_model(args, model, criterion, optimizer, scheduler, num_epochs, datase
 
                 # statistics
                 running_loss += loss.data.item()
-                running_corrects += torch.sum(preds == labels.data)
+                running_corrects += torch.sum(preds == labels.data).item()
 
                 batch_loss = (running_loss / float((i+1)))
-                batch_acc = (float(running_corrects.item()) / float((i+1)*args.batch_size))
+                batch_acc = (running_corrects / float((i+1)*args.batch_size))
 
                 if phase == 'train' and i%args.print_freq == 0:
                     print('[Epoch {}/{}]-[batch:{}/{}] lr:{:.4f} {} Loss: {:.6f}  Acc: {:.4f}  Time: {:.4f}batch/sec'.format(
